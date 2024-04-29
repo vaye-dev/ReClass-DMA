@@ -1,13 +1,102 @@
 #include "vmmdll.h"
-#include "ReClassNET_Plugin.hpp"
+#include "nativecore/ReClassNET_Plugin.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <vector>
 #include <filesystem>
+#include <sstream>
+#include <string>
 
 static VMM_HANDLE _hVmm = NULL;
 
 static const bool _hasMemMap = std::filesystem::exists("mmap.txt");
+static size_t _dtbFileSize = 0x80000;
+static size_t _size = 0;
+static DWORD64 _base = 0;
+
+struct DTBINFO
+{
+	DWORD index;
+	DWORD pid;
+	DWORD64 dtb;
+	DWORD64 addr;
+	std::string name;
+};
+
+inline VOID AddFileCallback(HANDLE handle, LPCSTR fileName, ULONG64 fileSize, VMMDLL_VFS_FILELIST_EXINFO* exInfo) {
+	if (!strcmp("dtb.txt", fileName))
+		_dtbFileSize = fileSize;
+}
+
+bool UpdateDirectoryTableBase(RC_Pointer handle, const std::string& name) {
+	VMMDLL_MAP_MODULEENTRY* module_entry{ };
+	if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &module_entry, VMMDLL_MODULE_FLAG_NORMAL))
+		return true;
+
+	if (!VMMDLL_InitializePlugins(_hVmm)) {
+		return false;
+	}
+
+	Sleep(1000);
+
+	while (true) {
+		unsigned char pp_data[0x3]{ };
+		DWORD i{ };
+
+		auto status = VMMDLL_VfsReadU(_hVmm, "\\misc\\procinfo\\progress_percent.txt", pp_data, 0x3, &i, 0);
+		if (status == VMMDLL_STATUS_SUCCESS && std::atoi(reinterpret_cast<char*>(pp_data)) == 100)
+			break;
+
+		Sleep(100);
+	}
+
+	VMMDLL_VFS_FILELIST2 vfs_file_list{ };
+	vfs_file_list.dwVersion = VMMDLL_VFS_FILELIST_VERSION;
+	vfs_file_list.h = _hVmm;
+	vfs_file_list.pfnAddDirectory = nullptr;
+	vfs_file_list.pfnAddFile = AddFileCallback;
+
+	if (!VMMDLL_VfsListU(_hVmm, "\\misc\\procinfo\\", &vfs_file_list))
+		return false;
+
+	auto dtbData = new unsigned char[_dtbFileSize];
+	DWORD i{ };
+
+	auto status = VMMDLL_VfsReadU(_hVmm, "\\misc\\procinfo\\dtb.txt", dtbData, _dtbFileSize - 1, &i, NULL);
+	if (status != VMMDLL_STATUS_SUCCESS) {
+		delete[] dtbData;
+		return false;
+	}
+
+	std::vector<DTBINFO> possibleDTBS{ };
+	std::istringstream dtb_data_ss(reinterpret_cast<char*>(dtbData));
+	std::string currentLine{ };
+
+	while (std::getline(dtb_data_ss, currentLine)) {
+		DTBINFO info{ };
+
+		std::istringstream ss(currentLine);
+		ss >> std::hex >> info.index >> std::dec >> info.pid >> std::hex >> info.dtb >> info.addr >> info.name;
+
+		if (name.find(info.name) != std::string::npos || info.pid == 0)
+			possibleDTBS.push_back(info);
+	}
+
+	for (size_t i = 0; i < possibleDTBS.size(); i++) {
+		VMMDLL_ConfigSet(_hVmm, VMMDLL_OPT_PROCESS_DTB | (DWORD)handle, possibleDTBS[i].dtb);
+
+		if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &module_entry, VMMDLL_MODULE_FLAG_NORMAL)) {
+			_base = module_entry->vaBase;
+			_size = module_entry->cbImageSize;
+
+			VMMDLL_MemFree(module_entry);
+
+			return true;
+		}
+	}
+
+	return false;
+}
 
 extern "C" void RC_CallConv EnumerateProcesses(EnumerateProcessCallback callbackProcess) {
 	if (callbackProcess == nullptr) {
@@ -231,7 +320,7 @@ extern "C" bool RC_CallConv IsProcessValid(RC_Pointer handle) {
 	info.magic = VMMDLL_PROCESS_INFORMATION_MAGIC;
 	info.wVersion = VMMDLL_PROCESS_INFORMATION_VERSION;
 
-	if (VMMDLL_ProcessGetInformation(_hVmm, (DWORD)handle, &info, &cbInfo)) {
+	if (VMMDLL_ProcessGetInformation(_hVmm, (DWORD)handle, &info, &cbInfo) && UpdateDirectoryTableBase(handle, info.szNameLong) ) {
 		return true;
 	}
 

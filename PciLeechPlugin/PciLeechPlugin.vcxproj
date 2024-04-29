@@ -100,12 +100,36 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\decoder.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\distorm.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\instructions.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\insts.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\mnemonics.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\operands.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\prefix.c" />
+    <ClCompile Include="nativecore\Dependencies\distorm\src\textdefs.c" />
+    <ClCompile Include="nativecore\Shared\DistormHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="exports.def" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="leechcore.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\include\distorm.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\include\mnemonics.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\config.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\decoder.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\instructions.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\insts.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\operands.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\prefix.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\textdefs.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\wstring.h" />
+    <ClInclude Include="nativecore\Dependencies\distorm\src\x86defs.h" />
+    <ClInclude Include="nativecore\ReClassNET_Plugin.hpp" />
+    <ClInclude Include="nativecore\Shared\DistormHelper.hpp" />
+    <ClInclude Include="nativecore\Shared\Keys.hpp" />
+    <ClInclude Include="nativecore\Windows\NativeCore.hpp" />
     <ClInclude Include="ReClassNET_Plugin.hpp" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="vmmdll.h" />
