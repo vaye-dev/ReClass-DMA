@@ -29,8 +29,8 @@ inline VOID AddFileCallback(HANDLE handle, LPCSTR fileName, ULONG64 fileSize, VM
 }
 
 bool UpdateDirectoryTableBase(RC_Pointer handle, const std::string& name) {
-	VMMDLL_MAP_MODULEENTRY* module_entry{ };
-	if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &module_entry, VMMDLL_MODULE_FLAG_NORMAL))
+	VMMDLL_MAP_MODULEENTRY* moduleEntry{ };
+	if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &moduleEntry, VMMDLL_MODULE_FLAG_NORMAL))
 		return true;
 
 	if (!VMMDLL_InitializePlugins(_hVmm)) {
@@ -40,23 +40,23 @@ bool UpdateDirectoryTableBase(RC_Pointer handle, const std::string& name) {
 	Sleep(1000);
 
 	while (true) {
-		unsigned char pp_data[0x3]{ };
+		unsigned char ppData[0x3]{ };
 		DWORD i{ };
 
-		auto status = VMMDLL_VfsReadU(_hVmm, "\\misc\\procinfo\\progress_percent.txt", pp_data, 0x3, &i, 0);
-		if (status == VMMDLL_STATUS_SUCCESS && std::atoi(reinterpret_cast<char*>(pp_data)) == 100)
+		auto status = VMMDLL_VfsReadU(_hVmm, "\\misc\\procinfo\\progress_percent.txt", ppData, 0x3, &i, 0);
+		if (status == VMMDLL_STATUS_SUCCESS && std::atoi(reinterpret_cast<char*>(ppData)) == 100)
 			break;
 
 		Sleep(100);
 	}
 
-	VMMDLL_VFS_FILELIST2 vfs_file_list{ };
-	vfs_file_list.dwVersion = VMMDLL_VFS_FILELIST_VERSION;
-	vfs_file_list.h = _hVmm;
-	vfs_file_list.pfnAddDirectory = nullptr;
-	vfs_file_list.pfnAddFile = AddFileCallback;
+	VMMDLL_VFS_FILELIST2 vfsFileList{ };
+	vfsFileList.dwVersion = VMMDLL_VFS_FILELIST_VERSION;
+	vfsFileList.h = _hVmm;
+	vfsFileList.pfnAddDirectory = nullptr;
+	vfsFileList.pfnAddFile = AddFileCallback;
 
-	if (!VMMDLL_VfsListU(_hVmm, "\\misc\\procinfo\\", &vfs_file_list))
+	if (!VMMDLL_VfsListU(_hVmm, "\\misc\\procinfo\\", &vfsFileList))
 		return false;
 
 	auto dtbData = new unsigned char[_dtbFileSize];
@@ -85,12 +85,10 @@ bool UpdateDirectoryTableBase(RC_Pointer handle, const std::string& name) {
 	for (size_t i = 0; i < possibleDTBS.size(); i++) {
 		VMMDLL_ConfigSet(_hVmm, VMMDLL_OPT_PROCESS_DTB | (DWORD)handle, possibleDTBS[i].dtb);
 
-		if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &module_entry, VMMDLL_MODULE_FLAG_NORMAL)) {
-			_base = module_entry->vaBase;
-			_size = module_entry->cbImageSize;
-
-			VMMDLL_MemFree(module_entry);
-
+		if (VMMDLL_Map_GetModuleFromNameU(_hVmm, (DWORD)handle, name.c_str(), &moduleEntry, VMMDLL_MODULE_FLAG_NORMAL)) {
+			_base = moduleEntry->vaBase;
+			_size = moduleEntry->cbImageSize;
+			VMMDLL_MemFree(moduleEntry);
 			return true;
 		}
 	}
